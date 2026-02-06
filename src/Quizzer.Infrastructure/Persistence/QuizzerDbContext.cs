@@ -18,7 +18,35 @@ public sealed class QuizzerDbContext(DbContextOptions<QuizzerDbContext> options)
 
     protected override void OnModelCreating(ModelBuilder mb)
     {
-        mb.ApplyConfigurationsFromAssembly(typeof(QuizzerDbContext).Assembly);
+        mb.Entity<Exam>().HasKey(x => x.Id);
+
+        mb.Entity<ExamVersion>().HasKey(x => x.Id);
+        mb.Entity<ExamVersion>()
+            .HasOne<Exam>()
+            .WithMany(e => e.Versions)
+            .HasForeignKey(v => v.ExamId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        mb.Entity<Question>().HasKey(x => x.Id);
+        mb.Entity<Question>()
+            .HasMany(q => q.Options)
+            .WithOne()
+            .HasForeignKey(o => o.QuestionId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        mb.Entity<Option>().HasKey(x => x.Id);
+
+        mb.Entity<Attempt>().HasKey(x => x.Id);
+        mb.Entity<AttemptAnswer>().HasKey(x => new { x.AttemptId, x.QuestionId });
+
+        mb.Entity<QuestionStats>().HasKey(x => x.Id);
+        mb.Entity<QuestionStats>().HasIndex(x => x.QuestionKey);
+
+        mb.Entity<Question>().HasIndex(x => x.QuestionKey);
+        mb.Entity<Option>().HasIndex(x => x.OptionKey);
+
+        mb.Entity<QuestionStats>().HasKey(x => x.Id);
+        mb.Entity<QuestionStats>().HasIndex(x => x.QuestionKey).IsUnique();
 
         base.OnModelCreating(mb);
     }
