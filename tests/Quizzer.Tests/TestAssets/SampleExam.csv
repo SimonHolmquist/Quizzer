@@ -1,0 +1,2 @@
+﻿question;option1;option2;option3;answer;explanation;tags;difficulty
+Â¿QuÃ© hace un Ã­ndice clustered?;Ordena fÃ­sicamente la tabla;Crea un hash;Ninguna de las anteriores;1;Clustered define el orden fÃ­sico;sql,indexes;2

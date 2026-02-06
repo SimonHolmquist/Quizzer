@@ -1,0 +1,38 @@
+<Project>
+  <PropertyGroup>
+    <!-- Central Package Management -->
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+
+    <!-- Si tu SDK/NuGet lo soporta, ayuda a evitar downgrades transitorios -->
+    <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- CQRS/Mediator -->
+    <PackageVersion Include="MediatR" Version="12.5.0" />
+
+    <!-- WPF MVVM -->
+    <PackageVersion Include="CommunityToolkit.Mvvm" Version="8.4.0" />
+
+    <!-- Editor interno -->
+    <PackageVersion Include="AvalonEdit" Version="6.3.1.120" />
+
+    <!-- CSV import/export -->
+    <PackageVersion Include="CsvHelper" Version="33.1.0" />
+
+    <!-- Persistencia local (SQLite) -->
+    <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="8.0.23" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Sqlite" Version="8.0.23" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.23" />
+
+    <!-- Host/DI para WPF (Generic Host) -->
+    <PackageVersion Include="Microsoft.Extensions.Hosting" Version="8.0.1" />
+
+    <!-- Tests -->
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.0.1" />
+    <PackageVersion Include="xunit" Version="2.9.3" />
+    <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.5" />
+    <PackageVersion Include="coverlet.collector" Version="6.0.4" />
+    <PackageVersion Include="Shouldly" Version="4.3.0" />
+  </ItemGroup>
+</Project>
