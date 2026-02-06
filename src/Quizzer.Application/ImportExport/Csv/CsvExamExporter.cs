@@ -1,6 +1,7 @@
 using CsvHelper;
 using CsvHelper.Configuration;
 using Quizzer.Application;
+using Quizzer.Application.Exams.Queries;
 using Quizzer.Domain.Exams;
 using System.Globalization;
 
@@ -8,6 +9,32 @@ namespace Quizzer.Application.ImportExport.Csv;
 
 public static class CsvExamExporter
 {
+    public static List<string> Export(string csvPath, IEnumerable<ExamQuestionDto> questions)
+    {
+        var errors = new List<string>();
+
+        if (string.IsNullOrWhiteSpace(csvPath))
+        {
+            errors.Add("Ruta de CSV inválida.");
+            return errors;
+        }
+
+        var questionList = questions?.OrderBy(q => q.OrderIndex).ToList() ?? [];
+        if (questionList.Count == 0)
+        {
+            errors.Add("La versión no contiene preguntas.");
+            return errors;
+        }
+
+        var rows = BuildRows(questionList.Select(q => (q.Text, q.Options.Select(o => (o.Text, o.IsCorrect)).ToList())));
+
+        if (rows.Errors.Count > 0)
+            return rows.Errors;
+
+        WriteCsv(csvPath, rows.Rows);
+        return errors;
+    }
+
     public static List<string> Export(ExamVersion version, string csvPath)
     {
         var errors = new List<string>();
@@ -31,21 +58,34 @@ public static class CsvExamExporter
             return errors;
         }
 
-        var rows = new List<ImportRow>();
+        var rows = BuildRows(questions.Select(q =>
+            (q.Text, q.Options?.OrderBy(o => o.OrderIndex).Select(o => (o.Text, o.Id == q.CorrectOptionId)).ToList() ?? [])));
 
-        for (var i = 0; i < questions.Count; i++)
+        if (rows.Errors.Count > 0)
+            return rows.Errors;
+
+        WriteCsv(csvPath, rows.Rows);
+        return errors;
+    }
+
+    private static (List<ImportRow> Rows, List<string> Errors) BuildRows(IEnumerable<(string Text, List<(string Text, bool IsCorrect)> Options)> questions)
+    {
+        var errors = new List<string>();
+        var rows = new List<ImportRow>();
+        var questionList = questions.ToList();
+
+        for (var i = 0; i < questionList.Count; i++)
         {
-            var question = questions[i];
+            var (text, options) = questionList[i];
             var rowNum = i + 2; // header = 1
             var rowHasError = false;
 
-            if (string.IsNullOrWhiteSpace(question.Text))
+            if (string.IsNullOrWhiteSpace(text))
             {
                 errors.Add($"Fila {rowNum}: question vacío.");
                 rowHasError = true;
             }
 
-            var options = question.Options?.OrderBy(o => o.OrderIndex).ToList() ?? [];
             if (options.Count < 2)
             {
                 errors.Add($"Fila {rowNum}: requiere al menos 2 opciones.");
@@ -63,7 +103,7 @@ public static class CsvExamExporter
                 rowHasError = true;
             }
 
-            var correctIndex = options.FindIndex(o => o.Id == question.CorrectOptionId);
+            var correctIndex = options.FindIndex(o => o.IsCorrect);
             if (correctIndex < 0)
             {
                 errors.Add($"Fila {rowNum}: opción correcta inválida.");
@@ -78,7 +118,7 @@ public static class CsvExamExporter
             string? OptionAt(int index) => index < options.Count ? options[index].Text.Trim() : null;
 
             rows.Add(new ImportRow(
-                question.Text.Trim(),
+                text.Trim(),
                 OptionAt(0),
                 OptionAt(1),
                 OptionAt(2),
@@ -88,15 +128,17 @@ public static class CsvExamExporter
                 OptionAt(6),
                 OptionAt(7),
                 answer,
-                question.Explanation?.Trim(),
                 null,
-                question.Difficulty
+                null,
+                null
             ));
         }
 
-        if (errors.Count > 0)
-            return errors;
+        return (rows, errors);
+    }
 
+    private static void WriteCsv(string csvPath, IReadOnlyList<ImportRow> rows)
+    {
         var cfg = new CsvConfiguration(CultureInfo.InvariantCulture)
         {
             Delimiter = ";"
@@ -105,7 +147,5 @@ public static class CsvExamExporter
         using var writer = new StreamWriter(csvPath);
         using var csv = new CsvWriter(writer, cfg);
         csv.WriteRecords(rows);
-
-        return errors;
     }
 }
