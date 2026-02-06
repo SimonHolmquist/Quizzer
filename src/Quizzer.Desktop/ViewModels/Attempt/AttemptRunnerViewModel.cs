@@ -8,21 +8,14 @@ using Quizzer.Desktop.Navigation;
 
 namespace Quizzer.Desktop.ViewModels.Attempt;
 
-public sealed partial class AttemptRunnerViewModel : ObservableObject
+public sealed partial class AttemptRunnerViewModel(IMediator mediator, INavigationService nav) : ObservableObject
 {
-    private readonly IMediator _mediator;
-    private readonly INavigationService _nav;
+    private readonly IMediator _mediator = mediator;
+    private readonly INavigationService _nav = nav;
 
     private Guid _examId;
     private Guid _attemptId;
     private DateTimeOffset _questionStartedAt = DateTimeOffset.UtcNow;
-
-    public AttemptRunnerViewModel(IMediator mediator, INavigationService nav)
-    {
-        _mediator = mediator;
-        _nav = nav;
-    }
-
     [ObservableProperty] private string header = "";
     [ObservableProperty] private string subheader = "";
     [ObservableProperty] private string progressLabel = "";
@@ -106,9 +99,7 @@ public sealed partial class AttemptRunnerViewModel : ObservableObject
         Header = session.ExamName;
         Subheader = $"v{versionNumber}";
 
-        Questions = session.Questions
-            .Select(q => new AttemptQuestionVm(q.QuestionId, q.Text, q.Options))
-            .ToList();
+        Questions = [.. session.Questions.Select(q => new AttemptQuestionVm(q.Id, q.Text, q.Options))];
 
         OnPropertyChanged(nameof(Questions));
 
@@ -146,11 +137,11 @@ public sealed partial class AttemptRunnerViewModel : ObservableObject
         var seconds = (int)Math.Max(0, (DateTimeOffset.UtcNow - _questionStartedAt).TotalSeconds);
 
         await _mediator.Send(new SaveAnswerCommand(
-            _attemptId,
-            CurrentQuestion.QuestionId,
-            CurrentQuestion.SelectedOption.OptionId,
-            CurrentQuestion.FlaggedDoubt,
-            seconds));
+            AttemptId: _attemptId,
+            QuestionId: CurrentQuestion.QuestionId,
+            SelectedOptionId: CurrentQuestion.SelectedOption.OptionId,
+            SecondsSpent: seconds,
+            FlaggedDoubt: CurrentQuestion.FlaggedDoubt));
     }
 }
 
@@ -161,7 +152,7 @@ public sealed partial class AttemptQuestionVm : ObservableObject
         QuestionId = questionId;
         Text = text;
         foreach (var opt in options)
-            Options.Add(new AttemptOptionVm(opt.OptionId, opt.Text));
+            Options.Add(new AttemptOptionVm(opt.Id, opt.Text));
     }
 
     public Guid QuestionId { get; }

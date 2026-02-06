@@ -30,13 +30,13 @@ public sealed partial class ExamsListViewModel : ObservableObject
     [ObservableProperty] private string newExamName = "";
     [ObservableProperty] private ExamListItemVm? selectedExam;
 
-    public IList<ExamListItemVm> Exams { get; private set; } = new List<ExamListItemVm>();
+    public IList<ExamListItemVm> Exams { get; private set; } = [];
 
     [RelayCommand]
     private async Task Refresh()
     {
         var items = await _mediator.Send(new GetExamListQuery());
-        Exams = items.Select(x => new ExamListItemVm(x.ExamId, x.Name, x.LatestPublishedVersionNumber, x.HasDraft)).ToList();
+        Exams = [.. items.Select(x => new ExamListItemVm(x.ExamId, x.Name, x.LatestPublishedVersionNumber, x.HasDraft))];
         OnPropertyChanged(nameof(Exams));
     }
 

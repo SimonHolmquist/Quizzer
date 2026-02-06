@@ -6,19 +6,12 @@ using Quizzer.Desktop.Navigation;
 
 namespace Quizzer.Desktop.ViewModels.Reports;
 
-public sealed partial class ReportsViewModel : ObservableObject
+public sealed partial class ReportsViewModel(IMediator mediator, INavigationService nav) : ObservableObject
 {
-    private readonly IMediator _mediator;
-    private readonly INavigationService _nav;
+    private readonly IMediator _mediator = mediator;
+    private readonly INavigationService _nav = nav;
 
     private Guid? _examId;
-
-    public ReportsViewModel(IMediator mediator, INavigationService nav)
-    {
-        _mediator = mediator;
-        _nav = nav;
-    }
-
     [ObservableProperty] private string header = "Reportes";
     [ObservableProperty] private string subheader = "";
     [ObservableProperty] private ExamDashboardItemVm? selectedExam;
@@ -48,8 +41,15 @@ public sealed partial class ReportsViewModel : ObservableObject
 
     private async Task RefreshAsync()
     {
-        var items = await _mediator.Send(new GetExamDashboardQuery());
-        Exams = items.Select(i => new ExamDashboardItemVm(i.ExamId, i.Name, i.TotalAttempts, i.AverageScorePercent, i.LastAttemptAt)).ToList();
+        var examDtos = await _mediator.Send(new GetExamDashboardQuery());
+
+        Exams = [.. examDtos.Select(i => new ExamDashboardItemVm(
+            i.ExamId,
+            i.Name,
+            i.TotalAttempts,
+            i.AverageScorePercent,
+            i.LastAttemptAt
+        ))];
         OnPropertyChanged(nameof(Exams));
 
         SelectedExam = _examId is null
@@ -63,11 +63,17 @@ public sealed partial class ReportsViewModel : ObservableObject
     private async Task LoadExamDetailsAsync(Guid examId)
     {
         var weak = await _mediator.Send(new GetWeakQuestionsQuery(examId));
-        WeakQuestions = weak.Select(w => new WeakQuestionVm(w.QuestionId, w.QuestionText, w.TotalAnswers, w.CorrectAnswers, w.AccuracyPercent)).ToList();
+        WeakQuestions = [.. weak.Select(w => new WeakQuestionVm(
+            w.QuestionId,
+            w.Text,
+            w.TotalAttempts,      // maps to TotalAnswers
+            w.CorrectCount,       // maps to CorrectAnswers
+            w.Accuracy            // maps to AccuracyPercent
+        ))];
         OnPropertyChanged(nameof(WeakQuestions));
 
         var due = await _mediator.Send(new GetDueQuestionsQuery(examId));
-        DueQuestions = due.Select(d => new DueQuestionVm(d.QuestionId, d.QuestionText, d.LastAnsweredAt)).ToList();
+        DueQuestions = [.. due.Select(d => new DueQuestionVm(d.QuestionId, d.Text, d.LastAnsweredAt))];
         OnPropertyChanged(nameof(DueQuestions));
 
         Subheader = SelectedExam is null

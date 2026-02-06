@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Quizzer.Application.Abstractions;
+using Quizzer.Application.Attempts.Queries;
 using Quizzer.Domain;
 
 namespace Quizzer.Application.Attempts.Commands;
@@ -13,7 +14,18 @@ public sealed record AttemptStartDto(
     Guid ExamVersionId,
     int VersionNumber,
     int TotalCount,
-    DateTimeOffset StartedAt);
+    DateTimeOffset StartedAt,
+    string ExamName,
+    List<AttemptQuestionDto> Questions);
+
+public record AttemptQuestionDto(
+    Guid Id,
+    string Text,
+    List<AttemptOptionDto> Options);
+
+public record AttemptOptionDto(
+    Guid Id,
+    string Text);
 
 public sealed class StartAttemptCommandHandler(IQuizzerDbContext db) : IRequestHandler<StartAttemptCommand, AttemptStartDto>
 {
@@ -46,6 +58,25 @@ public sealed class StartAttemptCommandHandler(IQuizzerDbContext db) : IRequestH
         _db.Attempts.Add(attempt);
         await _db.SaveChangesAsync(ct);
 
-        return new AttemptStartDto(attempt.Id, exam.Id, version.Id, version.VersionNumber, attempt.TotalCount, attempt.StartedAt);
+        // Fetch questions for the attempt
+        var questions = await _db.Questions.AsNoTracking()
+            .Where(q => q.ExamVersionId == version.Id)
+            .Select(q => new AttemptQuestionDto(
+                q.Id,
+                q.Text,
+                q.Options.Select(o => new AttemptOptionDto(o.Id, o.Text)).ToList()
+            ))
+            .ToListAsync(ct);
+
+        return new AttemptStartDto(
+            attempt.Id,
+            exam.Id,
+            version.Id,
+            version.VersionNumber,
+            attempt.TotalCount,
+            attempt.StartedAt,
+            exam.Name,
+            questions
+        );
     }
 }

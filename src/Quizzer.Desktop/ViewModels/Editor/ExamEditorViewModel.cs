@@ -7,6 +7,7 @@ using Quizzer.Application.ImportExport.Csv;
 using Quizzer.Desktop.Navigation;
 using Quizzer.Desktop.Services;
 using Quizzer.Desktop.ViewModels.Exams;
+using Quizzer.Domain.Exams;
 using System.IO;
 
 namespace Quizzer.Desktop.ViewModels.Editor;
@@ -163,7 +164,31 @@ public sealed partial class ExamEditorViewModel(
 
         try
         {
-            CsvExamExporter.Export(path, Questions.Select(q => q.ToDto()));
+            // Convert ExamQuestionDto to Domain.Exams.Question
+            var questions = Questions.Select(q => q.ToDto())
+                .Select(dto => new Quizzer.Domain.Exams.Question
+                {
+                    QuestionKey = dto.QuestionKey,
+                    OrderIndex = dto.OrderIndex,
+                    Text = dto.Text,
+                    Options = [.. dto.Options.Select(optDto => new Quizzer.Domain.Exams.Option
+                    {
+                        OptionKey = optDto.OptionKey,
+                        OrderIndex = optDto.OrderIndex,
+                        Text = optDto.Text,
+                        IsCorrect = optDto.IsCorrect
+                    })]
+                }).ToList();
+
+            var examVersion = new ExamVersion
+            {
+                Id = _draftVersionId,
+                ExamId = _examId,
+                Questions = questions
+                // Set other properties as needed, e.g. VersionNumber, Status, Notes, etc.
+            };
+
+            CsvExamExporter.Export(examVersion, path);
             _dialogService.ShowInfo("Exportación completada.");
         }
         catch (Exception ex)
