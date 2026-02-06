@@ -2,8 +2,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using MediatR;
 using Quizzer.Application.Attempts.Commands;
-using Quizzer.Application.Exams.Commands;
-using Quizzer.Application.Exams.Queries;
+using Quizzer.Application.Attempts.Queries;
 using Quizzer.Desktop.Navigation;
 
 namespace Quizzer.Desktop.ViewModels.Attempt;
@@ -84,30 +83,16 @@ public sealed partial class AttemptRunnerViewModel : ObservableObject
         IsFinished = false;
         ResultSummary = "";
 
-        var latestPublished = await _mediator.Send(new GetLatestPublishedVersionQuery(_examId));
-        Guid versionId;
-        int versionNumber;
-
-        if (latestPublished is not null)
-        {
-            versionId = latestPublished.VersionId;
-            versionNumber = latestPublished.VersionNumber;
-        }
-        else
-        {
-            versionId = await _mediator.Send(new CreateDraftVersionCommand(_examId));
-            var detail = await _mediator.Send(new GetExamDetailQuery(_examId));
-            versionNumber = detail.DraftVersion?.VersionNumber ?? 0;
-        }
-
-        var session = await _mediator.Send(new StartAttemptCommand(versionId));
+        var session = await _mediator.Send(new StartAttemptCommand(_examId));
         _attemptId = session.AttemptId;
 
-        Header = session.ExamName;
-        Subheader = $"v{versionNumber}";
+        var detail = await _mediator.Send(new GetAttemptDetailQuery(_attemptId));
 
-        Questions = session.Questions
-            .Select(q => new AttemptQuestionVm(q.QuestionId, q.Text, q.Options))
+        Header = detail.ExamName;
+        Subheader = $"v{detail.VersionNumber}";
+
+        Questions = detail.Questions
+            .Select(q => new AttemptQuestionVm(q))
             .ToList();
 
         OnPropertyChanged(nameof(Questions));
@@ -149,19 +134,22 @@ public sealed partial class AttemptRunnerViewModel : ObservableObject
             _attemptId,
             CurrentQuestion.QuestionId,
             CurrentQuestion.SelectedOption.OptionId,
-            CurrentQuestion.FlaggedDoubt,
-            seconds));
+            seconds,
+            CurrentQuestion.FlaggedDoubt));
     }
 }
 
 public sealed partial class AttemptQuestionVm : ObservableObject
 {
-    public AttemptQuestionVm(Guid questionId, string text, IReadOnlyList<AttemptOptionDto> options)
+    public AttemptQuestionVm(AttemptQuestionDetailDto question)
     {
-        QuestionId = questionId;
-        Text = text;
-        foreach (var opt in options)
+        QuestionId = question.QuestionId;
+        Text = question.Text;
+        foreach (var opt in question.Options)
             Options.Add(new AttemptOptionVm(opt.OptionId, opt.Text));
+
+        if (question.SelectedOptionId is Guid selectedId)
+            SelectedOption = Options.FirstOrDefault(o => o.OptionId == selectedId);
     }
 
     public Guid QuestionId { get; }
