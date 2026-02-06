@@ -59,6 +59,16 @@ public sealed partial class ExamsListViewModel : ObservableObject
         await OpenEditorInternal(SelectedExam.ExamId);
     }
 
+    [RelayCommand]
+    private async Task OpenDetail()
+    {
+        if (SelectedExam is null) return;
+
+        var detail = _sp.GetRequiredService<ExamDetailViewModel>();
+        await detail.LoadAsync(SelectedExam.ExamId);
+        _nav.Navigate(detail);
+    }
+
     private async Task OpenEditorInternal(Guid examId)
     {
         await _mediator.Send(new CreateDraftVersionCommand(examId)); // idempotente

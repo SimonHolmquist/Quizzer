@@ -2,6 +2,81 @@
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
     <Grid Margin="12">
-        <TextBlock Text="ReportsView" FontSize="20" />
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="12"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <Border Padding="12" BorderThickness="1" BorderBrush="#333" CornerRadius="8">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="12"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel>
+                    <TextBlock Text="{Binding Header}" FontSize="18" FontWeight="SemiBold"/>
+                    <TextBlock Text="{Binding Subheader}" Opacity="0.8" Margin="0,4,0,0"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="2" Orientation="Horizontal">
+                    <Button Content="Refrescar" Padding="14,8" Command="{Binding RefreshCommand}" />
+                    <Button Content="Volver" Padding="14,8" Margin="8,0,0,0" Command="{Binding BackCommand}" />
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <Grid Grid.Row="2">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="320"/>
+                <ColumnDefinition Width="12"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <Border BorderThickness="1" BorderBrush="#333" CornerRadius="8" Padding="12">
+                <StackPanel>
+                    <TextBlock Text="Exámenes" FontSize="16" FontWeight="SemiBold" />
+                    <ListBox ItemsSource="{Binding Exams}" SelectedItem="{Binding SelectedExam}" Margin="0,8,0,0">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <StackPanel Margin="0,0,0,8">
+                                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
+                                    <TextBlock Text="{Binding TotalAttempts, StringFormat=Intentos: {0}}" />
+                                    <TextBlock Text="{Binding AverageScoreLabel, StringFormat=Promedio: {0}}" />
+                                    <TextBlock Text="{Binding LastAttemptLabel, StringFormat=Último: {0}}" />
+                                </StackPanel>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </StackPanel>
+            </Border>
+
+            <Border Grid.Column="2" BorderThickness="1" BorderBrush="#333" CornerRadius="8" Padding="12">
+                <StackPanel>
+                    <TextBlock Text="Preguntas débiles" FontSize="16" FontWeight="SemiBold" />
+                    <ListView ItemsSource="{Binding WeakQuestions}" Margin="0,8,0,0" Height="220">
+                        <ListView.View>
+                            <GridView>
+                                <GridViewColumn Header="Pregunta" DisplayMemberBinding="{Binding Text}" Width="360" />
+                                <GridViewColumn Header="Exactitud" DisplayMemberBinding="{Binding AccuracyLabel}" Width="120" />
+                                <GridViewColumn Header="Resp." DisplayMemberBinding="{Binding TotalAnswers}" Width="80" />
+                            </GridView>
+                        </ListView.View>
+                    </ListView>
+
+                    <TextBlock Text="Pendientes" FontSize="16" FontWeight="SemiBold" Margin="0,16,0,0" />
+                    <ListView ItemsSource="{Binding DueQuestions}" Margin="0,8,0,0" Height="220">
+                        <ListView.View>
+                            <GridView>
+                                <GridViewColumn Header="Pregunta" DisplayMemberBinding="{Binding Text}" Width="360" />
+                                <GridViewColumn Header="Última vez" DisplayMemberBinding="{Binding LastAnsweredLabel}" Width="160" />
+                            </GridView>
+                        </ListView.View>
+                    </ListView>
+                </StackPanel>
+            </Border>
+        </Grid>
     </Grid>
 </UserControl>

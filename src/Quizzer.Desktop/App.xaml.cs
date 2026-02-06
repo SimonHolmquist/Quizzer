@@ -7,8 +7,10 @@ using Quizzer.Infrastructure;
 using Quizzer.Infrastructure.Persistence;
 using Quizzer.Desktop.Navigation;
 using Quizzer.Desktop.ViewModels;
+using Quizzer.Desktop.ViewModels.Attempt;
 using Quizzer.Desktop.ViewModels.Exams;
 using Quizzer.Desktop.ViewModels.Editor;
+using Quizzer.Desktop.ViewModels.Reports;
 
 namespace Quizzer.Desktop;
 
@@ -29,7 +31,10 @@ public partial class App : System.Windows.Application
 
                 services.AddSingleton<MainWindowViewModel>();
                 services.AddSingleton<ExamsListViewModel>();
+                services.AddTransient<ExamDetailViewModel>();
                 services.AddTransient<ExamEditorViewModel>();
+                services.AddTransient<AttemptRunnerViewModel>();
+                services.AddTransient<ReportsViewModel>();
 
                 services.AddSingleton(sp =>
                 {
