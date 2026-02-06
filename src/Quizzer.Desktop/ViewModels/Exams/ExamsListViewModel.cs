@@ -1,7 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using MediatR;
-using Microsoft.Extensions.DependencyInjection;
 using Quizzer.Application.Exams.Commands;
 using Quizzer.Application.Exams.Queries;
 using Quizzer.Desktop.Navigation;
@@ -13,13 +12,11 @@ public sealed partial class ExamsListViewModel : ObservableObject
 {
     private readonly IMediator _mediator;
     private readonly INavigationService _nav;
-    private readonly IServiceProvider _sp;
 
-    public ExamsListViewModel(IMediator mediator, INavigationService nav, IServiceProvider sp)
+    public ExamsListViewModel(IMediator mediator, INavigationService nav)
     {
         _mediator = mediator;
         _nav = nav;
-        _sp = sp;
 
         RefreshCommand.Execute(null);
     }
@@ -62,11 +59,7 @@ public sealed partial class ExamsListViewModel : ObservableObject
     private async Task OpenEditorInternal(Guid examId)
     {
         await _mediator.Send(new CreateDraftVersionCommand(examId)); // idempotente
-
-        var editor = _sp.GetRequiredService<ExamEditorViewModel>(); // transient
-        await editor.LoadAsync(examId);
-
-        _nav.Navigate(editor);
+        await _nav.NavigateToAsync<ExamEditorViewModel>(examId);
     }
 }
 

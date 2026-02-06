@@ -4,19 +4,16 @@ using MediatR;
 using Quizzer.Application.Exams.Commands;
 using Quizzer.Application.Exams.Queries;
 using Quizzer.Desktop.Navigation;
-using Quizzer.Desktop.ViewModels.Exams;
 
 namespace Quizzer.Desktop.ViewModels.Editor;
 
-public sealed partial class ExamEditorViewModel(IMediator mediator, INavigationService nav, ExamsListViewModel examsVm) : ObservableObject
+public sealed partial class ExamEditorViewModel(IMediator mediator, INavigationService nav) : ObservableObject, INavigationAware
 {
     private readonly IMediator _mediator = mediator;
     private readonly INavigationService _nav = nav;
 
     private Guid _examId;
     private Guid _draftVersionId;
-
-    private readonly ExamsListViewModel _examsVm = examsVm;
 
     [RelayCommand]
     private void Back() => _nav.GoBack();
@@ -29,7 +26,13 @@ public sealed partial class ExamEditorViewModel(IMediator mediator, INavigationS
 
     [ObservableProperty] private QuestionEditVm? selectedQuestion;
 
-    public async Task LoadAsync(Guid examId)
+    public async Task OnNavigatedToAsync(object? parameter)
+    {
+        if (parameter is Guid examId)
+            await LoadAsync(examId);
+    }
+
+    private async Task LoadAsync(Guid examId)
     {
         _examId = examId;
 
