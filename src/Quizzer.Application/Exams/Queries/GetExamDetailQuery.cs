@@ -27,7 +27,7 @@ public sealed class GetExamDetailQueryHandler(IQuizzerDbContext db) : IRequestHa
 
         var draft = await _db.ExamVersions.AsNoTracking()
             .Where(v => v.ExamId == exam.Id && v.Status == VersionStatus.Draft)
-            .OrderByDescending(v => v.CreatedAt)
+            .OrderByDescending(v => v.VersionNumber)
             .FirstOrDefaultAsync(ct);
 
         if (draft is null)

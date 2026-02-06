@@ -26,12 +26,12 @@ public static class CsvExamExporter
             return errors;
         }
 
-        var rows = BuildRows(questionList.Select(q => (q.Text, q.Options.Select(o => (o.Text, o.IsCorrect)).ToList())));
+        var (Rows, Errors) = BuildRows(questionList.Select(q => (q.Text, q.Options.Select(o => (o.Text, o.IsCorrect)).ToList())));
 
-        if (rows.Errors.Count > 0)
-            return rows.Errors;
+        if (Errors.Count > 0)
+            return Errors;
 
-        WriteCsv(csvPath, rows.Rows);
+        WriteCsv(csvPath, Rows);
         return errors;
     }
 
@@ -58,13 +58,13 @@ public static class CsvExamExporter
             return errors;
         }
 
-        var rows = BuildRows(questions.Select(q =>
+        var (Rows, Errors) = BuildRows(questions.Select(q =>
             (q.Text, q.Options?.OrderBy(o => o.OrderIndex).Select(o => (o.Text, o.Id == q.CorrectOptionId)).ToList() ?? [])));
 
-        if (rows.Errors.Count > 0)
-            return rows.Errors;
+        if (Errors.Count > 0)
+            return Errors;
 
-        WriteCsv(csvPath, rows.Rows);
+        WriteCsv(csvPath, Rows);
         return errors;
     }
 

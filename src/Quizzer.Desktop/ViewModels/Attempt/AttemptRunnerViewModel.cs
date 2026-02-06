@@ -84,9 +84,7 @@ public sealed partial class AttemptRunnerViewModel(IMediator mediator, INavigati
         Header = detail.ExamName;
         Subheader = $"v{detail.VersionNumber}";
 
-        Questions = detail.Questions
-            .Select(q => new AttemptQuestionVm(q))
-            .ToList();
+        Questions = [.. detail.Questions.Select(q => new AttemptQuestionVm(q))];
 
         OnPropertyChanged(nameof(Questions));
 
