@@ -1,19 +1,22 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Quizzer.Application.Abstractions;
+using Quizzer.Domain;
 
 namespace Quizzer.Application.Attempts.Queries;
 
-public sealed record GetAttemptHistoryQuery(Guid? ExamId = null) : IRequest<IReadOnlyList<AttemptHistoryItemDto>>;
+public sealed record GetAttemptHistoryQuery(Guid ExamId) : IRequest<IReadOnlyList<AttemptHistoryItemDto>>;
 
 public sealed record AttemptHistoryItemDto(
     Guid AttemptId,
-    Guid ExamId,
-    string ExamName,
+    Guid ExamVersionId,
     int VersionNumber,
     DateTimeOffset StartedAt,
     DateTimeOffset? FinishedAt,
-    double ScorePercent);
+    int TotalCount,
+    int CorrectCount,
+    double ScorePercent,
+    int DurationSeconds);
 
 public sealed class GetAttemptHistoryQueryHandler(IQuizzerDbContext db) : IRequestHandler<GetAttemptHistoryQuery, IReadOnlyList<AttemptHistoryItemDto>>
 {
@@ -21,33 +24,34 @@ public sealed class GetAttemptHistoryQueryHandler(IQuizzerDbContext db) : IReque
 
     public async Task<IReadOnlyList<AttemptHistoryItemDto>> Handle(GetAttemptHistoryQuery request, CancellationToken ct)
     {
-        var versions = await _db.ExamVersions
-            .AsNoTracking()
-            .Include(v => v.Exam)
+        var exam = await _db.Exams.AsNoTracking()
+            .FirstOrDefaultAsync(x => x.Id == request.ExamId && !x.IsDeleted, ct)
+            ?? throw new InvalidOperationException("Exam no encontrado.");
+
+        var versions = await _db.ExamVersions.AsNoTracking()
+            .Where(v => v.ExamId == exam.Id)
             .ToListAsync(ct);
 
-        if (request.ExamId is not null)
-            versions = versions.Where(v => v.ExamId == request.ExamId).ToList();
+        var versionMap = versions.ToDictionary(v => v.Id, v => v.VersionNumber);
 
-        var versionIds = versions.Select(v => v.Id).ToList();
-
-        var attempts = await _db.Attempts
-            .AsNoTracking()
-            .Where(a => versionIds.Contains(a.ExamVersionId))
+        var attempts = await _db.Attempts.AsNoTracking()
+            .Where(a => versionMap.Keys.Contains(a.ExamVersionId))
             .OrderByDescending(a => a.StartedAt)
             .ToListAsync(ct);
 
-        return attempts.Select(a =>
+        return [.. attempts.Select(a =>
         {
-            var version = versions.First(v => v.Id == a.ExamVersionId);
+            var versionNumber = versionMap.GetValueOrDefault(a.ExamVersionId);
             return new AttemptHistoryItemDto(
                 a.Id,
-                version.ExamId,
-                version.Exam?.Name ?? "",
-                version.VersionNumber,
+                a.ExamVersionId,
+                versionNumber,
                 a.StartedAt,
                 a.FinishedAt,
-                a.ScorePercent);
-        }).ToList();
+                a.TotalCount,
+                a.CorrectCount,
+                a.ScorePercent,
+                a.DurationSeconds);
+        })];
     }
 }

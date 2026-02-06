@@ -6,6 +6,7 @@ using Quizzer.Application;
 using Quizzer.Infrastructure;
 using Quizzer.Infrastructure.Persistence;
 using Quizzer.Desktop.Navigation;
+using Quizzer.Desktop.Services;
 using Quizzer.Desktop.ViewModels;
 using Quizzer.Desktop.ViewModels.Attempt;
 using Quizzer.Desktop.ViewModels.Exams;
@@ -28,6 +29,9 @@ public partial class App : System.Windows.Application
 
                 services.AddSingleton<NavigationService>();
                 services.AddSingleton<INavigationService>(sp => sp.GetRequiredService<NavigationService>());
+
+                services.AddSingleton<DialogService>();
+                services.AddSingleton<FileDialogService>();
 
                 services.AddSingleton<MainWindowViewModel>();
                 services.AddSingleton<ExamsListViewModel>();

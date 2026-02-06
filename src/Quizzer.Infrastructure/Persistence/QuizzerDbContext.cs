@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Quizzer.Application.Abstractions;
 using Quizzer.Domain;
 using Quizzer.Domain.Exams;
+using Quizzer.Domain.Study;
 
 namespace Quizzer.Infrastructure.Persistence;
 
@@ -13,6 +14,7 @@ public sealed class QuizzerDbContext(DbContextOptions<QuizzerDbContext> options)
     public DbSet<Option> Options => Set<Option>();
     public DbSet<Attempt> Attempts => Set<Attempt>();
     public DbSet<AttemptAnswer> AttemptAnswers => Set<AttemptAnswer>();
+    public DbSet<QuestionStats> QuestionStats => Set<QuestionStats>();
 
     protected override void OnModelCreating(ModelBuilder mb)
     {
@@ -37,8 +39,14 @@ public sealed class QuizzerDbContext(DbContextOptions<QuizzerDbContext> options)
         mb.Entity<Attempt>().HasKey(x => x.Id);
         mb.Entity<AttemptAnswer>().HasKey(x => new { x.AttemptId, x.QuestionId });
 
+        mb.Entity<QuestionStats>().HasKey(x => x.Id);
+        mb.Entity<QuestionStats>().HasIndex(x => x.QuestionKey);
+
         mb.Entity<Question>().HasIndex(x => x.QuestionKey);
         mb.Entity<Option>().HasIndex(x => x.OptionKey);
+
+        mb.Entity<QuestionStats>().HasKey(x => x.Id);
+        mb.Entity<QuestionStats>().HasIndex(x => x.QuestionKey).IsUnique();
 
         base.OnModelCreating(mb);
     }

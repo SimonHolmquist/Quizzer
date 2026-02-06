@@ -9,33 +9,32 @@ public sealed record SaveAnswerCommand(
     Guid AttemptId,
     Guid QuestionId,
     Guid SelectedOptionId,
-    bool FlaggedDoubt,
-    int SecondsSpent) : IRequest;
+    int SecondsSpent,
+    bool FlaggedDoubt) : IRequest<Unit>;
 
-public sealed class SaveAnswerCommandHandler(IQuizzerDbContext db) : IRequestHandler<SaveAnswerCommand>
+public sealed class SaveAnswerCommandHandler(IQuizzerDbContext db) : IRequestHandler<SaveAnswerCommand, Unit>
 {
     private readonly IQuizzerDbContext _db = db;
 
-    public async Task Handle(SaveAnswerCommand request, CancellationToken ct)
+    public async Task<Unit> Handle(SaveAnswerCommand request, CancellationToken ct)
     {
         var attempt = await _db.Attempts
             .FirstOrDefaultAsync(a => a.Id == request.AttemptId, ct)
-            ?? throw new InvalidOperationException("Intento no encontrado.");
+            ?? throw new InvalidOperationException("Attempt no encontrado.");
 
-        var question = await _db.Questions
-            .AsNoTracking()
-            .FirstOrDefaultAsync(q => q.Id == request.QuestionId, ct)
-            ?? throw new InvalidOperationException("Pregunta no encontrada.");
+        if (attempt.FinishedAt is not null)
+            throw new InvalidOperationException("Attempt ya finalizado.");
 
-        var option = await _db.Options
-            .AsNoTracking()
+        var question = await _db.Questions.AsNoTracking()
+            .FirstOrDefaultAsync(q => q.Id == request.QuestionId && q.ExamVersionId == attempt.ExamVersionId, ct)
+            ?? throw new InvalidOperationException("Pregunta no encontrada para esta versión.");
+
+        var option = await _db.Options.AsNoTracking()
             .FirstOrDefaultAsync(o => o.Id == request.SelectedOptionId && o.QuestionId == question.Id, ct)
-            ?? throw new InvalidOperationException("Opción no encontrada.");
+            ?? throw new InvalidOperationException("Opción inválida.");
 
         var answer = await _db.AttemptAnswers
             .FirstOrDefaultAsync(a => a.AttemptId == attempt.Id && a.QuestionId == question.Id, ct);
-
-        var isCorrect = option.Id == question.CorrectOptionId;
 
         if (answer is null)
         {
@@ -43,27 +42,20 @@ public sealed class SaveAnswerCommandHandler(IQuizzerDbContext db) : IRequestHan
             {
                 AttemptId = attempt.Id,
                 QuestionId = question.Id,
-                QuestionKey = question.QuestionKey,
-                SelectedOptionId = option.Id,
-                SelectedOptionKey = option.OptionKey,
-                IsCorrect = isCorrect,
-                AnsweredAt = DateTimeOffset.UtcNow,
-                SecondsSpent = request.SecondsSpent,
-                FlaggedDoubt = request.FlaggedDoubt
+                QuestionKey = question.QuestionKey
             };
 
             _db.AttemptAnswers.Add(answer);
         }
-        else
-        {
-            answer.SelectedOptionId = option.Id;
-            answer.SelectedOptionKey = option.OptionKey;
-            answer.IsCorrect = isCorrect;
-            answer.AnsweredAt = DateTimeOffset.UtcNow;
-            answer.SecondsSpent = request.SecondsSpent;
-            answer.FlaggedDoubt = request.FlaggedDoubt;
-        }
+
+        answer.SelectedOptionId = option.Id;
+        answer.SelectedOptionKey = option.OptionKey;
+        answer.IsCorrect = option.Id == question.CorrectOptionId;
+        answer.SecondsSpent = request.SecondsSpent;
+        answer.FlaggedDoubt = request.FlaggedDoubt;
+        answer.AnsweredAt = DateTimeOffset.UtcNow;
 
         await _db.SaveChangesAsync(ct);
+        return Unit.Value;
     }
 }

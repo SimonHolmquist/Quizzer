@@ -4,48 +4,72 @@ using Quizzer.Application.Abstractions;
 
 namespace Quizzer.Application.Reports.Queries;
 
-public sealed record GetExamDashboardQuery : IRequest<IReadOnlyList<ExamDashboardItemDto>>;
+public sealed record GetExamDashboardQuery(Guid? ExamId = null, Guid? ExamVersionId = null) : IRequest<ExamDashboardDto>;
 
-public sealed record ExamDashboardItemDto(
-    Guid ExamId,
-    string Name,
+public sealed record ExamDashboardDto(
     int TotalAttempts,
     double AverageScorePercent,
-    DateTimeOffset? LastAttemptAt);
+    double AverageDurationSeconds,
+    DateTimeOffset? LastAttemptAt,
+    int TotalQuestions,
+    int DueQuestions,
+    int WeakQuestions);
 
-public sealed class GetExamDashboardQueryHandler(IQuizzerDbContext db) : IRequestHandler<GetExamDashboardQuery, IReadOnlyList<ExamDashboardItemDto>>
+public sealed class GetExamDashboardQueryHandler(IQuizzerDbContext db) : IRequestHandler<GetExamDashboardQuery, ExamDashboardDto>
 {
+    private const int MinAttemptsForWeak = 3;
+    private const double WeakAccuracyThreshold = 0.6;
+
     private readonly IQuizzerDbContext _db = db;
 
-    public async Task<IReadOnlyList<ExamDashboardItemDto>> Handle(GetExamDashboardQuery request, CancellationToken ct)
+    public async Task<ExamDashboardDto> Handle(GetExamDashboardQuery request, CancellationToken ct)
     {
-        var exams = await _db.Exams
-            .AsNoTracking()
-            .Where(e => !e.IsDeleted)
-            .OrderBy(e => e.Name)
-            .ToListAsync(ct);
+        var versionIdsQuery = _db.ExamVersions.AsNoTracking()
+            .Where(v => (request.ExamId == null || v.ExamId == request.ExamId)
+                        && (request.ExamVersionId == null || v.Id == request.ExamVersionId))
+            .Select(v => v.Id);
 
-        var versions = await _db.ExamVersions
-            .AsNoTracking()
-            .Where(v => exams.Select(e => e.Id).Contains(v.ExamId))
-            .ToListAsync(ct);
+        var attemptsQuery = _db.Attempts.AsNoTracking()
+            .Where(a => versionIdsQuery.Contains(a.ExamVersionId));
 
-        var versionIds = versions.Select(v => v.Id).ToList();
+        var attemptAgg = await attemptsQuery
+            .GroupBy(_ => 1)
+            .Select(g => new
+            {
+                Total = g.Count(),
+                AvgScore = g.Average(a => (double?)a.ScorePercent) ?? 0,
+                AvgDuration = g.Average(a => (double?)a.DurationSeconds) ?? 0,
+                LastAttemptAt = g.Max(a => (DateTimeOffset?)(a.FinishedAt ?? a.StartedAt))
+            })
+            .FirstOrDefaultAsync(ct);
 
-        var attempts = await _db.Attempts
-            .AsNoTracking()
-            .Where(a => versionIds.Contains(a.ExamVersionId))
-            .ToListAsync(ct);
+        var questionKeysQuery = _db.Questions.AsNoTracking()
+            .Where(q => versionIdsQuery.Contains(q.ExamVersionId))
+            .Select(q => q.QuestionKey)
+            .Distinct();
 
-        return exams.Select(e =>
-        {
-            var examVersionIds = versions.Where(v => v.ExamId == e.Id).Select(v => v.Id).ToHashSet();
-            var examAttempts = attempts.Where(a => examVersionIds.Contains(a.ExamVersionId)).ToList();
+        var totalQuestions = await questionKeysQuery.CountAsync(ct);
 
-            var avg = examAttempts.Count == 0 ? 0 : examAttempts.Average(a => a.ScorePercent);
-            var last = examAttempts.Count == 0 ? null : examAttempts.Max(a => a.FinishedAt ?? a.StartedAt);
+        var now = DateTimeOffset.UtcNow;
+        var statsQuery = _db.QuestionStats.AsNoTracking()
+            .Where(s => questionKeysQuery.Contains(s.QuestionKey));
 
-            return new ExamDashboardItemDto(e.Id, e.Name, examAttempts.Count, avg, last);
-        }).ToList();
+        var dueQuestions = await statsQuery
+            .Where(s => s.DueAt != null && s.DueAt <= now)
+            .CountAsync(ct);
+
+        var weakQuestions = await statsQuery
+            .Where(s => s.CorrectCount + s.WrongCount >= MinAttemptsForWeak)
+            .Where(s => s.CorrectCount * 1.0 / (s.CorrectCount + s.WrongCount) <= WeakAccuracyThreshold)
+            .CountAsync(ct);
+
+        return new ExamDashboardDto(
+            attemptAgg?.Total ?? 0,
+            attemptAgg?.AvgScore ?? 0,
+            attemptAgg?.AvgDuration ?? 0,
+            attemptAgg?.LastAttemptAt,
+            totalQuestions,
+            dueQuestions,
+            weakQuestions);
     }
 }

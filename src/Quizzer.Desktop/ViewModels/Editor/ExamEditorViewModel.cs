@@ -3,15 +3,25 @@ using CommunityToolkit.Mvvm.Input;
 using MediatR;
 using Quizzer.Application.Exams.Commands;
 using Quizzer.Application.Exams.Queries;
+using Quizzer.Application.ImportExport.Csv;
 using Quizzer.Desktop.Navigation;
+using Quizzer.Desktop.Services;
 using Quizzer.Desktop.ViewModels.Exams;
+using System.IO;
 
 namespace Quizzer.Desktop.ViewModels.Editor;
 
-public sealed partial class ExamEditorViewModel(IMediator mediator, INavigationService nav, ExamsListViewModel examsVm) : ObservableObject
+public sealed partial class ExamEditorViewModel(
+    IMediator mediator,
+    INavigationService nav,
+    ExamsListViewModel examsVm,
+    DialogService dialogService,
+    FileDialogService fileDialogService) : ObservableObject
 {
     private readonly IMediator _mediator = mediator;
     private readonly INavigationService _nav = nav;
+    private readonly DialogService _dialogService = dialogService;
+    private readonly FileDialogService _fileDialogService = fileDialogService;
 
     private Guid _examId;
     private Guid _draftVersionId;
@@ -85,30 +95,112 @@ public sealed partial class ExamEditorViewModel(IMediator mediator, INavigationS
     [RelayCommand]
     private async Task SaveDraft()
     {
-        var cmd = new UpsertDraftContentCommand(
-            _draftVersionId,
-            [.. Questions.Select(q => q.ToDto())]
-        );
+        await SaveDraftInternal();
+    }
 
-        await _mediator.Send(cmd);
+    [RelayCommand]
+    private async Task ImportCsv()
+    {
+        var path = _fileDialogService.OpenCsv("Importar CSV");
+        if (string.IsNullOrWhiteSpace(path))
+            return;
 
-        // recargar para reflejar normalizaciones
-        await LoadAsync(_examId);
+        if (!_dialogService.Confirm("El import reemplazará el contenido del draft actual. ¿Continuar?"))
+            return;
+
+        try
+        {
+            await _mediator.Send(new ImportDraftFromCsvCommand(_examId, path));
+            await LoadAsync(_examId);
+            _dialogService.ShowInfo("Importación completada.");
+        }
+        catch (Exception ex)
+        {
+            _dialogService.ShowError(ex.Message);
+        }
     }
 
     [RelayCommand]
     private async Task Publish()
     {
         var notes = PublishNotes?.Trim();
-        if (string.IsNullOrWhiteSpace(notes)) return;
+        if (string.IsNullOrWhiteSpace(notes))
+        {
+            _dialogService.ShowError("Agregá notas de publicación antes de continuar.");
+            return;
+        }
 
-        await SaveDraft();
+        if (!_dialogService.Confirm("¿Publicar esta versión del examen?"))
+            return;
 
-        await _mediator.Send(new PublishVersionCommand(_draftVersionId, notes));
-        PublishNotes = "";
+        try
+        {
+            var saved = await SaveDraftInternal();
+            if (!saved)
+                return;
 
-        // volver a lista
-        Back();
+            await _mediator.Send(new PublishVersionCommand(_draftVersionId, notes));
+            PublishNotes = "";
+
+            _dialogService.ShowInfo("Versión publicada.");
+
+            // volver a lista
+            Back();
+        }
+        catch (Exception ex)
+        {
+            _dialogService.ShowError(ex.Message);
+        }
+    }
+
+    [RelayCommand]
+    private void ExportCsv()
+    {
+        var defaultName = BuildFileName(Header);
+        var path = _fileDialogService.SaveCsv(defaultName, "Exportar CSV");
+        if (string.IsNullOrWhiteSpace(path))
+            return;
+
+        try
+        {
+            CsvExamExporter.Export(path, Questions.Select(q => q.ToDto()));
+            _dialogService.ShowInfo("Exportación completada.");
+        }
+        catch (Exception ex)
+        {
+            _dialogService.ShowError(ex.Message);
+        }
+    }
+
+    private static string BuildFileName(string? title)
+    {
+        var safeTitle = string.IsNullOrWhiteSpace(title) ? "examen" : title;
+        foreach (var c in Path.GetInvalidFileNameChars())
+            safeTitle = safeTitle.Replace(c, '_');
+
+        return $"{safeTitle}.csv";
+    }
+
+    private async Task<bool> SaveDraftInternal()
+    {
+        try
+        {
+            var cmd = new UpsertDraftContentCommand(
+                _draftVersionId,
+                [.. Questions.Select(q => q.ToDto())]
+            );
+
+            await _mediator.Send(cmd);
+
+            // recargar para reflejar normalizaciones
+            await LoadAsync(_examId);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _dialogService.ShowError(ex.Message);
+            return false;
+        }
     }
 }
 

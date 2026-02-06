@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Quizzer.Application.Exams.Commands;
 using Quizzer.Application.Exams.Queries;
 using Quizzer.Desktop.Navigation;
+using Quizzer.Desktop.Services;
 using Quizzer.Desktop.ViewModels.Editor;
 
 namespace Quizzer.Desktop.ViewModels.Exams;
@@ -14,12 +15,14 @@ public sealed partial class ExamsListViewModel : ObservableObject
     private readonly IMediator _mediator;
     private readonly INavigationService _nav;
     private readonly IServiceProvider _sp;
+    private readonly DialogService _dialogService;
 
-    public ExamsListViewModel(IMediator mediator, INavigationService nav, IServiceProvider sp)
+    public ExamsListViewModel(IMediator mediator, INavigationService nav, IServiceProvider sp, DialogService dialogService)
     {
         _mediator = mediator;
         _nav = nav;
         _sp = sp;
+        _dialogService = dialogService;
 
         RefreshCommand.Execute(null);
     }
@@ -60,13 +63,41 @@ public sealed partial class ExamsListViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private async Task OpenDetail()
+    private async Task DeleteExam()
     {
         if (SelectedExam is null) return;
 
-        var detail = _sp.GetRequiredService<ExamDetailViewModel>();
-        await detail.LoadAsync(SelectedExam.ExamId);
-        _nav.Navigate(detail);
+        if (!_dialogService.Confirm($"¿Eliminar el examen '{SelectedExam.Name}'?"))
+            return;
+
+        try
+        {
+            await _mediator.Send(new SoftDeleteExamCommand(SelectedExam.ExamId));
+            await Refresh();
+        }
+        catch (Exception ex)
+        {
+            _dialogService.ShowError(ex.Message);
+        }
+    }
+
+    [RelayCommand]
+    private async Task RestoreExam()
+    {
+        if (SelectedExam is null) return;
+
+        if (!_dialogService.Confirm($"¿Restaurar el examen '{SelectedExam.Name}'?"))
+            return;
+
+        try
+        {
+            await _mediator.Send(new RestoreExamCommand(SelectedExam.ExamId));
+            await Refresh();
+        }
+        catch (Exception ex)
+        {
+            _dialogService.ShowError(ex.Message);
+        }
     }
 
     private async Task OpenEditorInternal(Guid examId)

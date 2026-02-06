@@ -4,14 +4,23 @@ using Quizzer.Application.Abstractions;
 
 namespace Quizzer.Application.Reports.Queries;
 
-public sealed record GetWeakQuestionsQuery(Guid ExamId, int Take = 10) : IRequest<IReadOnlyList<WeakQuestionDto>>;
+public sealed record GetWeakQuestionsQuery(
+    Guid? ExamId = null,
+    Guid? ExamVersionId = null,
+    int MinAttempts = 3,
+    double MaxAccuracy = 0.6) : IRequest<IReadOnlyList<WeakQuestionDto>>;
 
 public sealed record WeakQuestionDto(
+    Guid QuestionKey,
     Guid QuestionId,
-    string QuestionText,
-    int TotalAnswers,
-    int CorrectAnswers,
-    double AccuracyPercent);
+    string Text,
+    int? Difficulty,
+    int TotalAttempts,
+    int CorrectCount,
+    int WrongCount,
+    double Accuracy,
+    DateTimeOffset? LastSeenAt,
+    DateTimeOffset? LastAnsweredAt);
 
 public sealed class GetWeakQuestionsQueryHandler(IQuizzerDbContext db) : IRequestHandler<GetWeakQuestionsQuery, IReadOnlyList<WeakQuestionDto>>
 {
@@ -19,51 +28,72 @@ public sealed class GetWeakQuestionsQueryHandler(IQuizzerDbContext db) : IReques
 
     public async Task<IReadOnlyList<WeakQuestionDto>> Handle(GetWeakQuestionsQuery request, CancellationToken ct)
     {
-        var versionIds = await _db.ExamVersions
-            .AsNoTracking()
-            .Where(v => v.ExamId == request.ExamId)
-            .Select(v => v.Id)
+        var versionIdsQuery = _db.ExamVersions.AsNoTracking()
+            .Where(v => (request.ExamId == null || v.ExamId == request.ExamId)
+                        && (request.ExamVersionId == null || v.Id == request.ExamVersionId))
+            .Select(v => v.Id);
+
+        var questions = await _db.Questions.AsNoTracking()
+            .Where(q => versionIdsQuery.Contains(q.ExamVersionId))
+            .Select(q => new { q.QuestionKey, q.Id, q.Text, q.Difficulty })
             .ToListAsync(ct);
 
-        var attempts = await _db.Attempts
-            .AsNoTracking()
-            .Where(a => versionIds.Contains(a.ExamVersionId))
-            .Select(a => a.Id)
-            .ToListAsync(ct);
+        var questionMap = questions
+            .GroupBy(q => q.QuestionKey)
+            .Select(g => g.First())
+            .ToDictionary(q => q.QuestionKey);
 
-        var answers = await _db.AttemptAnswers
-            .AsNoTracking()
-            .Where(a => attempts.Contains(a.AttemptId))
-            .ToListAsync(ct);
-
-        if (answers.Count == 0)
+        if (questionMap.Count == 0)
             return [];
 
-        var questionIds = answers.Select(a => a.QuestionId).Distinct().ToList();
-        var questions = await _db.Questions
-            .AsNoTracking()
-            .Where(q => questionIds.Contains(q.Id))
-            .ToDictionaryAsync(q => q.Id, ct);
+        var stats = await _db.QuestionStats.AsNoTracking()
+            .Where(s => questionMap.Keys.Contains(s.QuestionKey))
+            .ToListAsync(ct);
 
-        var stats = answers.GroupBy(a => a.QuestionId)
-            .Select(g =>
+        var attemptAgg = await (
+            from answer in _db.AttemptAnswers.AsNoTracking()
+            join attempt in _db.Attempts.AsNoTracking() on answer.AttemptId equals attempt.Id
+            where versionIdsQuery.Contains(attempt.ExamVersionId)
+            group answer by answer.QuestionKey
+            into g
+            select new
             {
-                var total = g.Count();
-                var correct = g.Count(a => a.IsCorrect);
-                var accuracy = total == 0 ? 0 : correct * 100.0 / total;
-                return new { g.Key, total, correct, accuracy };
+                QuestionKey = g.Key,
+                TotalAttempts = g.Count(),
+                LastAnsweredAt = g.Max(a => (DateTimeOffset?)a.AnsweredAt)
             })
-            .OrderBy(s => s.accuracy)
-            .ThenByDescending(s => s.total)
-            .Take(request.Take)
-            .Select(s => new WeakQuestionDto(
-                s.Key,
-                questions.TryGetValue(s.Key, out var q) ? q.Text : "(pregunta)",
-                s.total,
-                s.correct,
-                s.accuracy))
+            .ToListAsync(ct);
+
+        var attemptMap = attemptAgg.ToDictionary(x => x.QuestionKey);
+
+        var weak = stats
+            .Select(s =>
+            {
+                var total = s.CorrectCount + s.WrongCount;
+                var accuracy = total > 0 ? s.CorrectCount * 1.0 / total : 0;
+                return new { Stat = s, Total = total, Accuracy = accuracy };
+            })
+            .Where(x => x.Total >= request.MinAttempts && x.Accuracy <= request.MaxAccuracy)
+            .OrderBy(x => x.Accuracy)
+            .ThenByDescending(x => x.Stat.WrongCount)
+            .Select(x =>
+            {
+                var question = questionMap[x.Stat.QuestionKey];
+                attemptMap.TryGetValue(x.Stat.QuestionKey, out var attemptInfo);
+                return new WeakQuestionDto(
+                    x.Stat.QuestionKey,
+                    question.Id,
+                    question.Text,
+                    question.Difficulty,
+                    attemptInfo?.TotalAttempts ?? x.Total,
+                    x.Stat.CorrectCount,
+                    x.Stat.WrongCount,
+                    x.Accuracy,
+                    x.Stat.LastSeenAt,
+                    attemptInfo?.LastAnsweredAt);
+            })
             .ToList();
 
-        return stats;
+        return weak;
     }
 }
