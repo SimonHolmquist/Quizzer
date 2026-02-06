@@ -1,67 +1,53 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Quizzer.Application.Abstractions;
-using Quizzer.Application.Common;
-using Quizzer.Application.Study;
 
 namespace Quizzer.Application.Attempts.Commands;
 
-public sealed record FinishAttemptCommand(Guid AttemptId) : IRequest<Result>;
+public sealed record FinishAttemptCommand(Guid AttemptId) : IRequest<AttemptSummaryDto>;
 
-public sealed class FinishAttemptCommandHandler : IRequestHandler<FinishAttemptCommand, Result>
+public sealed record AttemptSummaryDto(
+    Guid AttemptId,
+    Guid ExamVersionId,
+    int TotalCount,
+    int CorrectCount,
+    double ScorePercent,
+    int DurationSeconds,
+    DateTimeOffset? FinishedAt);
+
+public sealed class FinishAttemptCommandHandler(IQuizzerDbContext db) : IRequestHandler<FinishAttemptCommand, AttemptSummaryDto>
 {
-    private readonly IQuizzerDbContext _db;
-    private readonly IClock _clock;
-    private readonly SpacedRepetitionUpdater _updater;
+    private readonly IQuizzerDbContext _db = db;
 
-    public FinishAttemptCommandHandler(IQuizzerDbContext db, IClock clock, StudySettings settings)
-    {
-        _db = db;
-        _clock = clock;
-        _updater = new SpacedRepetitionUpdater(settings ?? StudySettings.Default);
-    }
-
-    public async Task<Result> Handle(FinishAttemptCommand request, CancellationToken cancellationToken)
+    public async Task<AttemptSummaryDto> Handle(FinishAttemptCommand request, CancellationToken ct)
     {
         var attempt = await _db.Attempts
             .Include(a => a.Answers)
-            .FirstOrDefaultAsync(a => a.Id == request.AttemptId, cancellationToken);
+            .FirstOrDefaultAsync(a => a.Id == request.AttemptId, ct)
+            ?? throw new InvalidOperationException("Attempt no encontrado.");
 
-        if (attempt is null)
-        {
-            return Result.Fail(AppErrors.NotFound);
-        }
+        if (attempt.FinishedAt is not null)
+            throw new InvalidOperationException("Attempt ya finalizado.");
 
-        var now = _clock.UtcNow;
-        attempt.FinishedAt = now;
-        attempt.TotalCount = attempt.Answers.Count;
-        attempt.CorrectCount = attempt.Answers.Count(a => a.IsCorrect);
-        attempt.ScorePercent = attempt.TotalCount == 0
-            ? 0
-            : Math.Round((double)attempt.CorrectCount / attempt.TotalCount * 100, 2);
-        attempt.DurationSeconds = (int)Math.Max(0, (now - attempt.StartedAt).TotalSeconds);
+        var totalCount = await _db.Questions.AsNoTracking()
+            .CountAsync(q => q.ExamVersionId == attempt.ExamVersionId, ct);
 
-        var questionKeys = attempt.Answers
-            .Select(a => a.QuestionKey)
-            .Distinct()
-            .ToList();
+        var correctCount = attempt.Answers.Count(a => a.IsCorrect);
+        attempt.TotalCount = totalCount;
+        attempt.CorrectCount = correctCount;
+        attempt.ScorePercent = totalCount == 0 ? 0 : correctCount / (double)totalCount * 100.0;
+        attempt.FinishedAt = DateTimeOffset.UtcNow;
+        attempt.DurationSeconds = (int)Math.Round((attempt.FinishedAt.Value - attempt.StartedAt).TotalSeconds);
 
-        if (questionKeys.Count > 0)
-        {
-            var stats = await _db.QuestionStats
-                .Where(s => questionKeys.Contains(s.QuestionKey))
-                .ToListAsync(cancellationToken);
+        await _db.SaveChangesAsync(ct);
 
-            var statsByKey = stats.ToDictionary(s => s.QuestionKey);
-            var created = _updater.ApplyAttempt(attempt.Answers, statsByKey, now);
-
-            if (created.Count > 0)
-            {
-                _db.QuestionStats.AddRange(created);
-            }
-        }
-
-        await _db.SaveChangesAsync(cancellationToken);
-        return Result.Ok();
+        return new AttemptSummaryDto(
+            attempt.Id,
+            attempt.ExamVersionId,
+            attempt.TotalCount,
+            attempt.CorrectCount,
+            attempt.ScorePercent,
+            attempt.DurationSeconds,
+            attempt.FinishedAt);
     }
 }

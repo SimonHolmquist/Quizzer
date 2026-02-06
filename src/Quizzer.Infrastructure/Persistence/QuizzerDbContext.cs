@@ -39,6 +39,9 @@ public sealed class QuizzerDbContext(DbContextOptions<QuizzerDbContext> options)
         mb.Entity<Attempt>().HasKey(x => x.Id);
         mb.Entity<AttemptAnswer>().HasKey(x => new { x.AttemptId, x.QuestionId });
 
+        mb.Entity<QuestionStats>().HasKey(x => x.Id);
+        mb.Entity<QuestionStats>().HasIndex(x => x.QuestionKey);
+
         mb.Entity<Question>().HasIndex(x => x.QuestionKey);
         mb.Entity<Option>().HasIndex(x => x.OptionKey);
 
