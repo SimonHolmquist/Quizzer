@@ -119,9 +119,6 @@ namespace Quizzer.Infrastructure.Migrations
                     b.Property<Guid>("ExamId")
                         .HasColumnType("TEXT");
 
-                    b.Property<Guid?>("ExamId1")
-                        .HasColumnType("TEXT");
-
                     b.Property<string>("Notes")
                         .IsRequired()
                         .HasColumnType("TEXT");
@@ -138,8 +135,6 @@ namespace Quizzer.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("ExamId");
-
-                    b.HasIndex("ExamId1");
 
                     b.ToTable("ExamVersions");
                 });
@@ -209,6 +204,43 @@ namespace Quizzer.Infrastructure.Migrations
                     b.ToTable("Questions");
                 });
 
+            modelBuilder.Entity("Quizzer.Domain.Study.QuestionStats", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("CorrectCount")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTimeOffset?>("DueAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<double>("EaseFactor")
+                        .HasColumnType("REAL");
+
+                    b.Property<int>("IntervalDays")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTimeOffset?>("LastCorrectAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset?>("LastSeenAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("QuestionKey")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("WrongCount")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("QuestionKey");
+
+                    b.ToTable("QuestionStats");
+                });
+
             modelBuilder.Entity("Quizzer.Domain.AttemptAnswer", b =>
                 {
                     b.HasOne("Quizzer.Domain.Attempt", null)
@@ -225,12 +257,6 @@ namespace Quizzer.Infrastructure.Migrations
                         .HasForeignKey("ExamId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-
-                    b.HasOne("Quizzer.Domain.Exams.Exam", "Exam")
-                        .WithMany()
-                        .HasForeignKey("ExamId1");
-
-                    b.Navigation("Exam");
                 });
 
             modelBuilder.Entity("Quizzer.Domain.Exams.Option", b =>

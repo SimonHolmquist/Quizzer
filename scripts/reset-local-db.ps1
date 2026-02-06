@@ -1,2 +1,13 @@
-﻿# TODO: cuando definamos la ruta real de la db, borrar el archivo aquÃ­.
-Write-Host ""Pendiente: definir ruta de SQLite y borrar el archivo .db""
+﻿$baseDir = $env:LOCALAPPDATA
+if (-not $baseDir) {
+    Write-Error "LOCALAPPDATA no está definido."
+    exit 1
+}
+
+$dbPath = Join-Path $baseDir "Quizzer\\quizzer.db"
+if (Test-Path $dbPath) {
+    Remove-Item $dbPath -Force
+    Write-Host "DB eliminada: $dbPath"
+} else {
+    Write-Host "DB no encontrada: $dbPath"
+}
