@@ -127,8 +127,8 @@ public sealed partial class AttemptRunnerViewModel(IMediator mediator, INavigati
             _attemptId,
             CurrentQuestion.QuestionId,
             CurrentQuestion.SelectedOption.OptionId,
-            CurrentQuestion.FlaggedDoubt,
-            seconds));
+            seconds,
+            CurrentQuestion.FlaggedDoubt));
     }
 }
 
@@ -136,9 +136,9 @@ public sealed partial class AttemptQuestionVm : ObservableObject
 {
     public AttemptQuestionVm(AttemptQuestionDetailDto question)
     {
-        QuestionId = questionId;
-        Text = text;
-        foreach (var opt in options)
+        QuestionId = question.QuestionId;
+        Text = question.Text;
+        foreach (var opt in question.Options)
             Options.Add(new AttemptOptionVm(opt.OptionId, opt.Text));
     }
 

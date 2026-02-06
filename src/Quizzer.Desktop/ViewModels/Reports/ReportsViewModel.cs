@@ -1,6 +1,7 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using MediatR;
+using Quizzer.Application.Exams.Queries;
 using Quizzer.Application.Reports.Queries;
 using Quizzer.Desktop.Navigation;
 
@@ -41,15 +42,20 @@ public sealed partial class ReportsViewModel(IMediator mediator, INavigationServ
 
     private async Task RefreshAsync()
     {
-        var examDtos = await _mediator.Send(new GetExamDashboardQuery());
+        var examList = await _mediator.Send(new GetExamListQuery());
+        var examItems = examList
+            .Select(async exam =>
+            {
+                var dashboard = await _mediator.Send(new GetExamDashboardQuery(exam.ExamId));
+                return new ExamDashboardItemVm(
+                    exam.ExamId,
+                    exam.Name,
+                    dashboard.TotalAttempts,
+                    dashboard.AverageScorePercent,
+                    dashboard.LastAttemptAt);
+            });
 
-        Exams = [.. examDtos.Select(i => new ExamDashboardItemVm(
-            i.ExamId,
-            i.Name,
-            i.TotalAttempts,
-            i.AverageScorePercent,
-            i.LastAttemptAt
-        ))];
+        Exams = [.. await Task.WhenAll(examItems)];
         OnPropertyChanged(nameof(Exams));
 
         SelectedExam = _examId is null
