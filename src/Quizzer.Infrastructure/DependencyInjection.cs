@@ -15,7 +15,7 @@ public static class DependencyInjection
 
         services.AddDbContext<QuizzerDbContext>(static (sp, opts) =>
         {
-            var dbPath = DbPathProvider.DbPath;
+            var dbPath = DbPathProvider.GetDbPath();
             opts.UseSqlite($"Data Source={dbPath}");
         });
 

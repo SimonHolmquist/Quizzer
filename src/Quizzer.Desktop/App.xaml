@@ -1,9 +1,25 @@
-﻿<Application x:Class="Quizzer.Desktop.App"
+<Application x:Class="Quizzer.Desktop.App"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:local="clr-namespace:Quizzer.Desktop"
-             StartupUri="MainWindow.xaml">
+             xmlns:vm="clr-namespace:Quizzer.Desktop.ViewModels"
+             xmlns:examsVm="clr-namespace:Quizzer.Desktop.ViewModels.Exams"
+             xmlns:editorVm="clr-namespace:Quizzer.Desktop.ViewModels.Editor"
+             xmlns:viewsExams="clr-namespace:Quizzer.Desktop.Views.Exams"
+             xmlns:viewsEditor="clr-namespace:Quizzer.Desktop.Views.Editor">
     <Application.Resources>
-         
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="Resources/Styles.xaml" />
+                <ResourceDictionary Source="Resources/Theme.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+
+            <DataTemplate DataType="{x:Type examsVm:ExamsListViewModel}">
+                <viewsExams:ExamsListView />
+            </DataTemplate>
+
+            <DataTemplate DataType="{x:Type editorVm:ExamEditorViewModel}">
+                <viewsEditor:ExamEditorView />
+            </DataTemplate>
+        </ResourceDictionary>
     </Application.Resources>
 </Application>

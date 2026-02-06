@@ -2,13 +2,11 @@ namespace Quizzer.Infrastructure.Services;
 
 public sealed class DbPathProvider
 {
-    public static string DbPath
+    public static string GetDbPath()
     {
-        get
-        {
-            // TODO: definir ubicación definitiva (AppData/Local/Quizzer/quizzer.db)
-            var baseDir = AppContext.BaseDirectory;
-            return Path.Combine(baseDir, "quizzer.db");
-        }
+        var baseDir = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        var dir = Path.Combine(baseDir, "Quizzer");
+        Directory.CreateDirectory(dir);
+        return Path.Combine(dir, "quizzer.db");
     }
 }

@@ -1,14 +1,18 @@
-﻿using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.ComponentModel;
 using Quizzer.Desktop.Navigation;
 
 namespace Quizzer.Desktop.ViewModels;
 
 public sealed partial class MainWindowViewModel : ObservableObject
 {
-    public INavigationService Nav { get; }
+    public NavigationService Nav { get; }
 
-    public MainWindowViewModel(INavigationService nav)
+    [ObservableProperty]
+    private string statusText = "";
+
+    public MainWindowViewModel(NavigationService nav)
     {
         Nav = nav;
+        StatusText = "DB: LocalAppData\\Quizzer\\quizzer.db";
     }
 }

@@ -2,6 +2,82 @@
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
     <Grid Margin="12">
-        <TextBlock Text="ExamEditorView" FontSize="20" />
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="12"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <Border Padding="12" BorderThickness="1" BorderBrush="#333" CornerRadius="8">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="12"/>
+                    <ColumnDefinition Width="420"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel>
+                    <TextBlock Text="{Binding Header}" FontSize="18" FontWeight="SemiBold"/>
+                    <TextBlock Text="{Binding Subheader}" Opacity="0.8" Margin="0,4,0,0"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="2">
+                    <TextBlock Text="Notas de versión (obligatorio para publicar)" Margin="0,0,0,6"/>
+                    <TextBox Text="{Binding PublishNotes, UpdateSourceTrigger=PropertyChanged}"
+                             AcceptsReturn="True" Height="72" />
+                    <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+                        <Button Content="Guardar Draft" Padding="14,8" Command="{Binding SaveDraftCommand}"/>
+                        <Button Content="Publicar" Padding="14,8" Margin="12,0,0,0" Command="{Binding PublishCommand}"/>
+                        <Button Content="Volver" Padding="14,8" Margin="12,0,0,0" Command="{Binding BackCommand}"/>
+                    </StackPanel>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <Grid Grid.Row="2">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="420"/>
+                <ColumnDefinition Width="12"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <Border BorderThickness="1" BorderBrush="#333" CornerRadius="8" Padding="12">
+                <StackPanel>
+                    <Button Content="Agregar pregunta" Padding="14,8" Command="{Binding AddQuestionCommand}"/>
+                    <ListBox ItemsSource="{Binding Questions}"
+                             SelectedItem="{Binding SelectedQuestion}"
+                             DisplayMemberPath="Title"
+                             Margin="0,12,0,0"
+                             Height="520"/>
+                </StackPanel>
+            </Border>
+
+            <Border Grid.Column="2" BorderThickness="1" BorderBrush="#333" CornerRadius="8" Padding="12">
+                <StackPanel>
+                    <TextBlock Text="Editor de pregunta" FontSize="16" FontWeight="SemiBold"/>
+                    <TextBox Text="{Binding SelectedQuestion.Text, UpdateSourceTrigger=PropertyChanged}"
+                             AcceptsReturn="True" Height="120" Margin="0,10,0,0"/>
+
+                    <TextBlock Text="Opciones" Margin="0,10,0,6"/>
+                    <ItemsControl ItemsSource="{Binding SelectedQuestion.Options}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <DockPanel Margin="0,0,0,6">
+                                    <RadioButton DockPanel.Dock="Left"
+                                                 IsChecked="{Binding IsCorrect, Mode=TwoWay}"
+                                                 GroupName="CorrectOption"
+                                                 VerticalAlignment="Center"
+                                                 Width="24"/>
+                                    <TextBox Text="{Binding Text, UpdateSourceTrigger=PropertyChanged}" />
+                                </DockPanel>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <Button Content="Agregar opción" Padding="14,8" Margin="0,10,0,0"
+                            Command="{Binding AddOptionCommand}"/>
+                </StackPanel>
+            </Border>
+        </Grid>
     </Grid>
 </UserControl>

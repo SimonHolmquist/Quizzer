@@ -2,6 +2,43 @@
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
     <Grid Margin="12">
-        <TextBlock Text="ExamsListView" FontSize="20" />
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="12"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <Border Padding="12" BorderThickness="1" BorderBrush="#333" CornerRadius="8">
+            <StackPanel Orientation="Horizontal">
+                <TextBox Width="280"
+                         Text="{Binding NewExamName, UpdateSourceTrigger=PropertyChanged}"
+                         Height="30"
+                         VerticalContentAlignment="Center" />
+                <Button Content="Crear" Height="30" Padding="14,0" Margin="12,0,0,0"
+                        Command="{Binding CreateExamCommand}"/>
+                <Button Content="Refrescar" Height="30" Padding="14,0" Margin="12,0,0,0"
+                        Command="{Binding RefreshCommand}"/>
+            </StackPanel>
+        </Border>
+
+        <ListView Grid.Row="2"
+                  ItemsSource="{Binding Exams}"
+                  SelectedItem="{Binding SelectedExam}"
+                  BorderThickness="1"
+                  BorderBrush="#333">
+            <ListView.View>
+                <GridView>
+                    <GridViewColumn Header="Nombre" DisplayMemberBinding="{Binding Name}" Width="420"/>
+                    <GridViewColumn Header="Última versión" DisplayMemberBinding="{Binding LatestVersionLabel}" Width="140"/>
+                    <GridViewColumn Header="Draft" DisplayMemberBinding="{Binding HasDraftLabel}" Width="120"/>
+                </GridView>
+            </ListView.View>
+        </ListView>
+
+        <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Left" Margin="0,12,0,0">
+            <Button Content="Abrir editor (Draft)" Padding="14,8"
+                    Command="{Binding OpenEditorCommand}" />
+        </StackPanel>
     </Grid>
 </UserControl>

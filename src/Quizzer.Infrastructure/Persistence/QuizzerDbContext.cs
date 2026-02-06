@@ -5,7 +5,7 @@ using Quizzer.Domain.Exams;
 
 namespace Quizzer.Infrastructure.Persistence;
 
-public sealed class QuizzerDbContext(DbContextOptions options) : DbContext(options), IQuizzerDbContext
+public sealed class QuizzerDbContext(DbContextOptions<QuizzerDbContext> options) : DbContext(options), IQuizzerDbContext
 {
     public DbSet<Exam> Exams => Set<Exam>();
     public DbSet<ExamVersion> ExamVersions => Set<ExamVersion>();
@@ -16,23 +16,30 @@ public sealed class QuizzerDbContext(DbContextOptions options) : DbContext(optio
 
     protected override void OnModelCreating(ModelBuilder mb)
     {
+        mb.Entity<Exam>().HasKey(x => x.Id);
+
+        mb.Entity<ExamVersion>().HasKey(x => x.Id);
+        mb.Entity<ExamVersion>()
+            .HasOne<Exam>()
+            .WithMany(e => e.Versions)
+            .HasForeignKey(v => v.ExamId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        mb.Entity<Question>().HasKey(x => x.Id);
+        mb.Entity<Question>()
+            .HasMany(q => q.Options)
+            .WithOne()
+            .HasForeignKey(o => o.QuestionId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        mb.Entity<Option>().HasKey(x => x.Id);
+
+        mb.Entity<Attempt>().HasKey(x => x.Id);
         mb.Entity<AttemptAnswer>().HasKey(x => new { x.AttemptId, x.QuestionId });
 
-        mb.Entity<Question>()
-          .HasMany(q => q.Options)
-          .WithOne()
-          .HasForeignKey(o => o.QuestionId)
-          .OnDelete(DeleteBehavior.Cascade);
+        mb.Entity<Question>().HasIndex(x => x.QuestionKey);
+        mb.Entity<Option>().HasIndex(x => x.OptionKey);
 
-        mb.Entity<ExamVersion>()
-          .HasMany(v => v.Questions)
-          .WithOne()
-          .HasForeignKey(q => q.ExamVersionId)
-          .OnDelete(DeleteBehavior.Cascade);
-
-        // Índices útiles para reportes
-        mb.Entity<Question>().HasIndex(q => q.QuestionKey);
-        mb.Entity<Option>().HasIndex(o => o.OptionKey);
-        mb.Entity<Attempt>().HasIndex(a => a.ExamVersionId);
+        base.OnModelCreating(mb);
     }
 }
