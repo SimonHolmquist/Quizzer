@@ -47,7 +47,7 @@ public partial class App : System.Windows.Application
         await MigrateDatabaseAsync(_host.Services);
 
         var nav = _host.Services.GetRequiredService<INavigationService>();
-        nav.Navigate(_host.Services.GetRequiredService<ExamsListViewModel>());
+        await nav.NavigateToAsync<ExamsListViewModel>();
 
         _host.Services.GetRequiredService<MainWindow>().Show();
 
