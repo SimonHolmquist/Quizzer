@@ -79,8 +79,7 @@ namespace Quizzer.Infrastructure.Migrations
                     Status = table.Column<int>(type: "INTEGER", nullable: false),
                     Notes = table.Column<string>(type: "TEXT", nullable: false),
                     CreatedAt = table.Column<DateTimeOffset>(type: "TEXT", nullable: false),
-                    PublishedAt = table.Column<DateTimeOffset>(type: "TEXT", nullable: true),
-                    ExamId1 = table.Column<Guid>(type: "TEXT", nullable: true)
+                    PublishedAt = table.Column<DateTimeOffset>(type: "TEXT", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -91,11 +90,6 @@ namespace Quizzer.Infrastructure.Migrations
                         principalTable: "Exams",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
-                        name: "FK_ExamVersions_Exams_ExamId1",
-                        column: x => x.ExamId1,
-                        principalTable: "Exams",
-                        principalColumn: "Id");
                 });
 
             migrationBuilder.CreateTable(
@@ -143,15 +137,29 @@ namespace Quizzer.Infrastructure.Migrations
                         onDelete: ReferentialAction.Cascade);
                 });
 
+            migrationBuilder.CreateTable(
+                name: "QuestionStats",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "TEXT", nullable: false),
+                    QuestionKey = table.Column<Guid>(type: "TEXT", nullable: false),
+                    LastSeenAt = table.Column<DateTimeOffset>(type: "TEXT", nullable: true),
+                    LastCorrectAt = table.Column<DateTimeOffset>(type: "TEXT", nullable: true),
+                    CorrectCount = table.Column<int>(type: "INTEGER", nullable: false),
+                    WrongCount = table.Column<int>(type: "INTEGER", nullable: false),
+                    EaseFactor = table.Column<double>(type: "REAL", nullable: false),
+                    IntervalDays = table.Column<int>(type: "INTEGER", nullable: false),
+                    DueAt = table.Column<DateTimeOffset>(type: "TEXT", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_QuestionStats", x => x.Id);
+                });
+
             migrationBuilder.CreateIndex(
                 name: "IX_ExamVersions_ExamId",
                 table: "ExamVersions",
                 column: "ExamId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_ExamVersions_ExamId1",
-                table: "ExamVersions",
-                column: "ExamId1");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Options_OptionKey",
@@ -172,6 +180,11 @@ namespace Quizzer.Infrastructure.Migrations
                 name: "IX_Questions_QuestionKey",
                 table: "Questions",
                 column: "QuestionKey");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_QuestionStats_QuestionKey",
+                table: "QuestionStats",
+                column: "QuestionKey");
         }
 
         /// <inheritdoc />
@@ -182,6 +195,9 @@ namespace Quizzer.Infrastructure.Migrations
 
             migrationBuilder.DropTable(
                 name: "Options");
+
+            migrationBuilder.DropTable(
+                name: "QuestionStats");
 
             migrationBuilder.DropTable(
                 name: "Attempts");
