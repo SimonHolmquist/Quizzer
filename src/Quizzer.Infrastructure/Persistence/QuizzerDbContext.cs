@@ -45,6 +45,9 @@ public sealed class QuizzerDbContext(DbContextOptions<QuizzerDbContext> options)
         mb.Entity<Question>().HasIndex(x => x.QuestionKey);
         mb.Entity<Option>().HasIndex(x => x.OptionKey);
 
+        mb.Entity<QuestionStats>().HasKey(x => x.Id);
+        mb.Entity<QuestionStats>().HasIndex(x => x.QuestionKey).IsUnique();
+
         base.OnModelCreating(mb);
     }
 }
