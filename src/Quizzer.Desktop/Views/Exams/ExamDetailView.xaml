@@ -24,7 +24,7 @@
                 <StackPanel Grid.Column="2" Orientation="Horizontal">
                     <Button Content="Refrescar" Padding="14,8" Command="{Binding RefreshCommand}" />
                     <Button Content="Editar Draft" Padding="14,8" Margin="8,0,0,0"
-                            Command="{Binding OpenDraftEditorCommand}" IsEnabled="{Binding HasDraft}" />
+                            Command="{Binding OpenDraftEditorCommand}" />
                     <Button Content="Iniciar intento" Padding="14,8" Margin="8,0,0,0"
                             Command="{Binding StartAttemptCommand}" IsEnabled="{Binding CanStartAttempt}" />
                     <Button Content="Reportes" Padding="14,8" Margin="8,0,0,0"
