@@ -8,6 +8,7 @@ using Quizzer.Desktop.Navigation;
 using Quizzer.Desktop.Services;
 using Quizzer.Desktop.ViewModels.Exams;
 using Quizzer.Domain.Exams;
+using System.Collections.ObjectModel;
 using System.IO;
 
 namespace Quizzer.Desktop.ViewModels.Editor;
@@ -36,7 +37,7 @@ public sealed partial class ExamEditorViewModel(
     [ObservableProperty] private string subheader = "";
     [ObservableProperty] private string publishNotes = "";
 
-    public IList<QuestionEditVm> Questions { get; private set; } = [];
+    [ObservableProperty] private ObservableCollection<QuestionEditVm> questions = [];
 
     [ObservableProperty] private QuestionEditVm? selectedQuestion;
 
@@ -53,11 +54,9 @@ public sealed partial class ExamEditorViewModel(
         Header = dto.Name;
         Subheader = $"Draft v{dto.DraftVersion.VersionNumber} (aún no publicado)";
 
-        Questions = [.. dto.DraftVersion.Questions
+        Questions = new ObservableCollection<QuestionEditVm>(dto.DraftVersion.Questions
             .OrderBy(q => q.OrderIndex)
-            .Select(q => QuestionEditVm.FromDto(q))];
-
-        OnPropertyChanged(nameof(Questions));
+            .Select(q => QuestionEditVm.FromDto(q)));
         SelectedQuestion = Questions.FirstOrDefault();
     }
 
@@ -76,8 +75,7 @@ public sealed partial class ExamEditorViewModel(
         q.Options.Add(new OptionEditVm { OptionKey = Guid.NewGuid(), OrderIndex = 1, Text = "Opción 1", IsCorrect = true });
         q.Options.Add(new OptionEditVm { OptionKey = Guid.NewGuid(), OrderIndex = 2, Text = "Opción 2", IsCorrect = false });
 
-        Questions = [.. Questions, q];
-        OnPropertyChanged(nameof(Questions));
+        Questions.Add(q);
         SelectedQuestion = q;
     }
 
@@ -236,7 +234,7 @@ public sealed partial class QuestionEditVm : ObservableObject
 
     [ObservableProperty] private string text = "";
 
-    public IList<OptionEditVm> Options { get; } = [];
+    public ObservableCollection<OptionEditVm> Options { get; } = [];
 
     public string Title => $"{OrderIndex}. {Truncate(Text, 48)}";
 

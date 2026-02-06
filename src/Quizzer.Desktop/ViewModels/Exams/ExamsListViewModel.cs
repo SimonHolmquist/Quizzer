@@ -32,6 +32,11 @@ public sealed partial class ExamsListViewModel : ObservableObject
 
     public IList<ExamListItemVm> Exams { get; private set; } = [];
 
+    partial void OnSelectedExamChanged(ExamListItemVm? value)
+    {
+        OpenDetailCommand.NotifyCanExecuteChanged();
+    }
+
     [RelayCommand]
     private async Task Refresh()
     {
@@ -61,6 +66,18 @@ public sealed partial class ExamsListViewModel : ObservableObject
         if (SelectedExam is null) return;
         await OpenEditorInternal(SelectedExam.ExamId);
     }
+
+    [RelayCommand(CanExecute = nameof(CanOpenDetail))]
+    private async Task OpenDetail()
+    {
+        if (SelectedExam is null) return;
+
+        var detail = _sp.GetRequiredService<ExamDetailViewModel>();
+        await detail.LoadAsync(SelectedExam.ExamId);
+        _nav.Navigate(detail);
+    }
+
+    private bool CanOpenDetail() => SelectedExam is not null;
 
     [RelayCommand]
     private async Task DeleteExam()
